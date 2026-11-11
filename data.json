@@ -1,0 +1,47 @@
+[
+    {
+      "Create/Edit/Enquiry": {
+        "artCode":"ART1001", 
+        "Group": {
+            "Department": "12",
+            "GroupCode": "1122",
+            "Buyer": "D",
+            "AfrikaansDescription": "Test description",
+            "EnglishDescription": "Test description"
+        }, 
+        "Buyer": {
+          "Buyer": "BUY123", 
+          "Description": "Test description", 
+          "Dep": "12"
+        }, 
+        "BarCode": "123456789012",
+        "AfrDescription": "Test description",
+        "EngDescription": "Test description",
+        "OwnDescription": "No"
+        
+      }
+    },
+    {
+      "Create/Edit/Enquiry": {
+        "artCode":"ART1221", 
+        "Group": {
+            "Department": "12",
+            "GroupCode": "1122",
+            "Buyer": "D",
+            "AfrikaansDescription": "Test description",
+            "EnglishDescription": "Test description"
+        }, 
+        "Buyer": {
+          "Buyer": "BUY123", 
+          "Description": "Test description", 
+          "Dep": "12"
+        }, 
+        "BarCode": "123456789012",
+        "AfrDescription": "Test description",
+        "EngDescription": "Test description",
+        "OwnDescription": "No"
+        
+      }
+    }
+  
+]

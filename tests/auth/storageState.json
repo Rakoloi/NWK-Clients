@@ -1,0 +1,53 @@
+{
+  "cookies": [
+    {
+      "name": "i18n_redirected",
+      "value": "en",
+      "domain": "lar-qa.nwk.co.za",
+      "path": "/",
+      "expires": 1825850069.214553,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "access_token",
+      "value": "3811%7CHxkLReB8ct3ltSgN8a8FwsvQwq4lsRaUdYwfGr0Tad33cab8",
+      "domain": "lar-qa.nwk.co.za",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "ph_phc_tbixiJCEvIgpZ4rdTEUzpfqIKLCilm2S8XLklAXq9Mp_posthog",
+      "value": "%7B%22%24device_id%22%3A%2201a1c573-f060-7b7e-8aee-9079ce9ec3de%22%2C%22distinct_id%22%3A%2201a1c573-f060-7b7e-8aee-9079ce9ec3de%22%2C%22%24sesid%22%3A%5B1794314076686%2C%2201a1c573-f5b3-73ab-a621-619de2a30203%22%2C1794314073523%5D%2C%22%24user_state%22%3A%22anonymous%22%7D",
+      "domain": ".nwk.co.za",
+      "path": "/",
+      "expires": 1825850076,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://lar-qa.nwk.co.za",
+      "localStorage": [
+        {
+          "name": "ph_phc_tbixiJCEvIgpZ4rdTEUzpfqIKLCilm2S8XLklAXq9Mp_posthog",
+          "value": "{\"$initialization_time\":\"2026-11-10T12:34:32.158Z\",\"$configured_session_timeout_ms\":1800000,\"distinct_id\":\"01a1c573-f060-7b7e-8aee-9079ce9ec3de\",\"$device_id\":\"01a1c573-f060-7b7e-8aee-9079ce9ec3de\",\"$user_state\":\"anonymous\",\"$error_tracking_suppression_rules\":[],\"$session_recording_remote_config\":{\"cache_timestamp\":1794314073524,\"enabled\":true,\"canvasFps\":null,\"canvasQuality\":null,\"consoleLogRecordingEnabled\":true,\"endpoint\":\"/s/\",\"eventTriggers\":[],\"linkedFlag\":null,\"masking\":null,\"minimumDurationMilliseconds\":null,\"networkPayloadCapture\":{\"capturePerformance\":{\"network_timing\":true,\"web_vitals\":true,\"web_vitals_allowed_metrics\":null}},\"recordCanvas\":false,\"recorderVersion\":\"v2\",\"sampleRate\":null,\"scriptConfig\":{\"script\":\"posthog-recorder\"},\"triggerMatchType\":null,\"urlBlocklist\":[],\"urlTriggers\":[],\"version\":1,\"canvasRecording\":{\"enabled\":false,\"fps\":null,\"quality\":null}},\"$autocapture_disabled_server_side\":false,\"$product_tours_enabled_server_side\":false,\"$heatmaps_enabled_server_side\":true,\"$web_vitals_enabled_server_side\":true,\"$web_vitals_allowed_metrics\":null,\"$exception_capture_enabled_server_side\":true,\"$dead_clicks_enabled_server_side\":false,\"$sesid\":[1794314076686,\"01a1c573-f5b3-73ab-a621-619de2a30203\",1794314073523],\"$client_session_props\":{\"sessionId\":\"01a1c573-f5b3-73ab-a621-619de2a30203\",\"props\":{\"r\":\"$direct\",\"u\":\"https://lar-qa.nwk.co.za/auth/sign-in\"}},\"$debug_first_full_snapshot_timestamp\":1794314073574,\"$sess_rec_flush_size\":{\"sessionId\":\"01a1c573-f5b3-73ab-a621-619de2a30203\",\"size\":133730}}"
+        },
+        {
+          "name": "theme",
+          "value": "light"
+        },
+        {
+          "name": "nuxt-color-mode",
+          "value": "system"
+        }
+      ]
+    }
+  ]
+}

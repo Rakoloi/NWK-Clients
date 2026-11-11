@@ -1,0 +1,20 @@
+{
+  "name": "clients-system",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {},
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.2",
+    "@types/pdfkit": "^0.17.6",
+    "pdfkit": "^0.19.1"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "xlsx": "^0.18.5"
+  }
+}

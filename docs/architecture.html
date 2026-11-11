@@ -1,0 +1,335 @@
+﻿<html><head><meta charset="utf-8"><title>Architecture</title>
+<style>
+body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
+h1 { color: #0b6b2b; font-size: 22pt; }
+h2 { color: #0b6b2b; font-size: 15pt; margin-top: 18pt; }
+h3 { color: #1e8e3e; font-size: 12pt; }
+pre { font-family: Consolas, monospace; font-size: 10pt; background: #f4f4f4; padding: 8pt; border: 1pt solid #d0d0d0; }
+code { font-family: Consolas, monospace; font-size: 10pt; }
+hr { border: 0; border-top: 1pt solid #c0c0c0; margin: 12pt 0; }
+li { margin-bottom: 2pt; }
+</style></head><body>
+<h1>Clients System - Test Data Automation Framework</h1>
+<h2>Architecture and How It Works</h2>
+<hr>
+<h2>1. Purpose</h2>
+<p>The Clients System project is an automated test-data generator built on top of Playwright. It drives the NWK Clients web application (QA environment) through its full "Create Client" workflow for every row in an Excel workbook. Each successfully created client becomes real test data in the system. A persistent JSON store makes the suite resumable, and a custom PDF reporter produces a polished execution report after every run.</p>
+<p>The framework was designed around four non-negotiable goals:</p>
+<p>1. Data-driven: tests are generated at runtime from an Excel workbook. 2. Resumable: a row that already passed in a previous run must be skipped so    the suite can be stopped and resumed without re-doing work or creating    duplicates. 3. Evidence-rich: every failed test must leave behind a screenshot, video and    trace that the author can inspect without rerunning anything. 4. Human-readable reporting: the result of every run is published as a PDF    that non-technical stakeholders can open directly.</p>
+<hr>
+<h2>2. Technology Stack</h2>
+<ul>
+<li><b>Language</b>: TypeScript (Node.js runtime, Windows host).</li>
+<li><b>Test runner</b>: @playwright/test v1.60.</li>
+<li><b>Browser automation</b>: Playwright (Chromium, headed by default).</li>
+<li><b>Excel reader</b>: xlsx (SheetJS) v0.18.</li>
+<li><b>PDF rendering</b>: pdfkit v0.19.</li>
+<li><b>Config / secrets</b>: dotenv (loads QA credentials from .env).</li>
+</ul>
+<p>Dependencies are declared in package.json; no build step is required because Playwright executes the TypeScript sources directly.</p>
+<hr>
+<h2>3. Folder Layout</h2>
+<pre>
+Clients-System/
+  playwright.config.ts        # Playwright configuration + reporter wiring
+  package.json                # Dependencies
+  .env                        # QA_Username / QA_Password (not committed)
+  images/
+    NWK-logo.png              # Logo used in the PDF report header
+  pages/
+    createAccount.ts          # Page Object Model for the Create Client flow
+  tests/
+    auth/
+      login.setup.ts          # One-time sign-in, saves storageState.json
+      storageState.json       # Reusable auth cookies / localStorage
+    workflows/
+      create-client.spec.ts   # Data-driven test: one test per Excel row
+  utils/
+    excelReader.ts            # Reads clientsData.xlsx -&gt; { sheet: rows[] }
+    clientsData.xlsx          # Source of truth for test data
+    testResultsStore.ts       # Read/upsert reports/testResults.json
+  reporters/
+    pdf-reporter.ts           # Custom Playwright reporter -&gt; PDF
+  reports/
+    testResults.json          # Persistent per-row status (resumability)
+    reportNN/                 # One folder per run (PDF + evidence)
+      reportNN.pdf
+      &lt;failed-test-name&gt;/     # Screenshot, video, trace, error.txt
+  playwright-report/          # Standard Playwright HTML report
+</pre>
+<hr>
+<h2>4. High-Level Flow</h2>
+<pre>
++---------------------+        +--------------------------+
+| clientsData.xlsx    |        | reports/testResults.json |
+|  (test data)        |        |  (persistent history)    |
++----------+----------+        +------------+-------------+
+           |                                |
+           v                                v
+  +--------+--------+              +--------+--------+
+  | utils/          |              | utils/          |
+  | excelReader.ts  |              | testResultsStore|
+  +--------+--------+              +--------+--------+
+           |                                |
+           +--------------+-----------------+
+                          v
+         +----------------+----------------+
+         | tests/workflows/                |
+         | create-client.spec.ts           |
+         |  - describe(sheetName)          |
+         |     test(TC-No)                 |
+         +----------------+----------------+
+                          |
+                          v
+              +-----------+-----------+
+              | pages/createAccount.ts|
+              |  (Page Object Model)  |
+              +-----------+-----------+
+                          |
+                          v  Playwright drives Chromium
+              +-----------+-----------+
+              | NWK Clients QA site   |
+              +-----------+-----------+
+                          |
+                          v
+              +-----------+---------------+
+              | reporters/pdf-reporter.ts |
+              |  onTestEnd -&gt; JSON upsert |
+              |  onEnd     -&gt; render PDF  |
+              |  onExit    -&gt; evidence    |
+              +---------------------------+
+</pre>
+<hr>
+<h2>5. Configuration (playwright.config.ts)</h2>
+<p>Key settings:</p>
+<ul>
+<li><code>testDir: './tests'</code> discovers both the auth setup and the workflow spec.</li>
+<li><code>fullyParallel: false</code> and <code>workers: 1</code> keep rows sequential, because the</li>
+<p>  app under test does not tolerate concurrent client creation.</p>
+<li><code>maxFailures: 0</code> means Playwright keeps running the full suite even when</li>
+<p>  individual rows fail; this is critical for a batch of data where we want   every row attempted.</p>
+<li><code>timeout: 0</code>, <code>expect.timeout: 0</code>, <code>actionTimeout: 0</code>, <code>navigationTimeout: 0</code></li>
+<p>  disable Playwright's hard timeouts (the suite relies on explicit waits   inside the Page Object Model).</p>
+<li><code>screenshot: 'only-on-failure'</code>, <code>video: 'retain-on-failure'</code>,</li>
+<p>  <code>trace: 'retain-on-failure'</code> capture evidence only when a test fails.</p>
+<li>Two reporters are wired:</li>
+<p>  1. <code>html</code> - standard Playwright report under <code>playwright-report/</code>.   2. <code>./reporters/pdf-reporter.ts</code> - the custom PDF + JSON upsert.</p>
+<li>Two projects:</li>
+<p>  1. <code>setup</code> - runs <code>login.setup.ts</code>.   2. <code>chromium</code> - runs the workflow spec, <code>dependencies: ['setup']</code> and      <code>storageState: 'tests/auth/storageState.json'</code> so every test starts      already logged in. <code>headless: false</code> is on so the operator can watch      the browser.</p>
+</ul>
+<hr>
+<h2>6. Authentication (tests/auth/login.setup.ts)</h2>
+<p>A single Playwright "setup" test logs into the QA environment, waits until "Welcome to NWK," is visible, and persists cookies + storage via <code>page.context().storageState({ path: 'tests/auth/storageState.json' })</code>.</p>
+<p>Every subsequent worker in the <code>chromium</code> project boots with that storage state injected, so no row re-logs in. Credentials come from <code>.env</code> (<code>QA_Username</code>, <code>QA_Password</code>) loaded with dotenv.</p>
+<hr>
+<h2>7. Data Source (utils/excelReader.ts)</h2>
+<p><code>getWorkbookData()</code> reads <code>utils/clientsData.xlsx</code> with SheetJS and returns an object of the shape:</p>
+<pre>
+{
+  "Monthly accounts":              [ {row object}, ... ],
+  "Cash accounts (Miscellane) (ZL)": [ {row object}, ... ],
+  "Maise account (X)":             [ {row object}, ... ],
+  "Production &amp; Month account(A-S)": [ {row object}, ... ],
+   ...
+}
+</pre>
+<p>Each row is a <code>{ columnName: cellValue }</code> map (empty cells become empty strings via <code>defval: ''</code>). Sheet names in the workbook correspond directly to the account types the UI supports; this is how a single spec can handle every variant.</p>
+<hr>
+<h2>8. Page Object Model (pages/createAccount.ts)</h2>
+<p><code>CreateAccountPage</code> wraps every interaction with the Create Client wizard:</p>
+<ul>
+<li><code>openSystem()</code> - navigates to the clients list (via the sign-in URL that</li>
+<p>  redirects post-auth) and clicks "Create Client".</p>
+<li><code>createClient()</code> - selects the account type passed in the constructor.</li>
+<li><code>clientInformation(...)</code> - fills the client's legal / personal details.</li>
+<li><code>contactInformation(...)</code> - cellphone, email, physical + postal addresses.</li>
+<li><code>businessInformation(...)</code> - tax country, VAT, farmer flags, silo, etc.</li>
+<li><code>peopleOfInterest(...)</code> - loops over the "|" delimited PI fields.</li>
+<li><code>Fica(fica_date)</code>, <code>Session(session_date)</code> - optional sub-forms triggered</li>
+<p>  by Excel flags.</p>
+<li><code>enterAccountInfo(accountNumber, ...)</code> - assigns the account number and</li>
+<p>  any sheet-specific extras (trial balance indicator, product type, etc.).</p>
+<li><code>saveClient()</code> - submits the wizard and asserts the "Success" and</li>
+<p>  "Client created successfully" toasts.</p>
+</ul>
+<p>The class is instantiated per test with <code>(page, accountType)</code>; the constructor logs the account type so the console trace shows which branch is running.</p>
+<hr>
+<h2>9. Data-Driven Spec (tests/workflows/create-client.spec.ts)</h2>
+<p>High-level logic:</p>
+<pre>
+const workbookData = getWorkbookData();
+
+Object.entries(workbookData).forEach(([sheetName, rows]) =&gt; {
+  test.describe(sheetName, () =&gt; {
+    rows.forEach((row) =&gt; {
+      test(`${row['TC-No']}`, async ({ page }) =&gt; {
+
+        // 1. Expose row context to the reporter.
+        test.info().annotations.push({ type: 'account',    description: row['Account number'] });
+        test.info().annotations.push({ type: 'identifier', description: row['ID number'] || row['Business registration num'] });
+
+        // 2. Resumability: skip rows already recorded as passed/duplicate.
+        const resultsKey = makeKey(row['Account number'], row['TC-No']);
+        const previous = findEntry(resultsKey);
+        if (previous &amp;&amp; (previous.status === 'passed' || previous.status === 'duplicate')) {
+          test.skip(true, `Already '${previous.status}' in testResults.json`);
+        }
+
+        // 3. Dispatch to the correct account-type branch.
+        switch (sheetName) {
+          case 'Monthly accounts':             /* build client via CreateAccountPage */ break;
+          case 'Cash accounts (Miscellane) (ZL)': ... break;
+          case 'Maise account (X)':            ... break;
+          case 'Production &amp; Month account(A-S)': ... break;
+        }
+      });
+    });
+  });
+});
+</pre>
+<p>Design points:</p>
+<ul>
+<li><b>One test per Excel row</b>, so the HTML report, the PDF report and</li>
+<p>  Playwright's own filters (<code>-g TC-01</code>) all operate at row granularity.</p>
+<li><b>Sheet name == test.describe title == PDF group</b>: this is the single</li>
+<p>  piece of metadata that ties data, UI branch and report row together.</p>
+<li><b>Annotations are the metadata channel</b> between the spec and the custom</li>
+<p>  reporter. They are the reason the reporter can print the account number   and ID / Reg number without parsing the Excel file itself.</p>
+</ul>
+<hr>
+<h2>10. Resumable Runs (utils/testResultsStore.ts + reports/testResults.json)</h2>
+<p><code>reports/testResults.json</code> is the authoritative, cross-run record of what has already been done. Shape:</p>
+<pre>
+{
+  "entries": [
+    {
+      "key": "ZD01749000",
+      "testNo": "TC-MA-02",
+      "sheetName": "Monthly accounts",
+      "identifier": "2011/005182/07",
+      "accountNumber": "ZD01749000",
+      "status": "passed",
+      "isDuplicate": false,
+      "durationSec": 57.69,
+      "error": "",
+      "screenshots": [],
+      "lastRunAt": "2026-10-12T10:35:34.483Z"
+    }
+  ]
+}
+</pre>
+<p>The helper module exposes:</p>
+<ul>
+<li><code>makeKey(accountNumber, testNo)</code> - key is the Account number, falling</li>
+<p>  back to TC-No when the account column is blank.</p>
+<li><code>findEntry(key)</code> - used by the spec to decide whether to skip.</li>
+<li><code>upsertEntry(entry)</code> - used by the reporter to insert or replace by key.</li>
+<li><code>readResultsFile() / writeResultsFile(data)</code> - low-level IO.</li>
+</ul>
+<p>The skip rule the spec enforces is simple:</p>
+<pre>
+if previous.status in {'passed', 'duplicate'}  -&gt;  test.skip(...)
+otherwise                                      -&gt;  run and let the reporter
+                                                   overwrite the entry
+</pre>
+<p>The reporter adds one safety rule when writing back: a prior <code>passed</code> or <code>duplicate</code> entry is NEVER downgraded to <code>skipped</code> or <code>interrupted</code> by a later run (only <code>lastRunAt</code> is bumped). This means stopping Ctrl-C in the middle of a batch is always safe.</p>
+<hr>
+<h2>11. Custom PDF Reporter (reporters/pdf-reporter.ts)</h2>
+<p>The reporter implements Playwright's <code>Reporter</code> interface and owns three responsibilities:</p>
+<p>1. <b>Capture per-test metadata</b> (<code>onTestEnd</code>):</p>
+<ul>
+<li>Reads the test's annotations to pull out the account number and</li>
+<p>     identifier.</p>
+<li>Records duration, status, and (for failures) the error message.</li>
+<li>Calls <code>upsertEntry(...)</code> on <code>testResultsStore</code> so the JSON stays</li>
+<p>     authoritative, preserving prior <code>passed/duplicate</code> entries.</p>
+<li>If the test failed/timed-out, queues the test's attachments</li>
+<p>     (screenshot, video, trace) for later copying.</p>
+</ul>
+<p>2. <b>Render the PDF</b> (<code>onEnd</code>):</p>
+<ul>
+<li>Creates a new folder <code>reports/reportNN/</code> (NN auto-increments).</li>
+<li>Reads <code>testResults.json</code> and renders the report from it. This means</li>
+<p>     rows skipped this run still appear in the PDF with their last-known      status.</p>
+<li>Page layout:</li>
+<li>Centered NWK logo at the top.</li>
+<li>Title: <code>${projectName}-test data automation report</code>.</li>
+<li>Header lines: Generated timestamp, "Automation framework:</li>
+<p>       playwright.", total run time.</p>
+<li>Execution Summary box: Total / Passed / Failed / Skipped.</li>
+<li>Grouped table: one sub-heading per sheet (describe title), one row</li>
+<p>       per test with TC-No, ID / Reg No, STATUS, DURATION. Rows whose        stored status is <code>duplicate</code> render as "DUPLICATE" in blue.</p>
+</ul>
+<p>3. <b>Copy failure evidence</b> (<code>onExit</code>):</p>
+<ul>
+<li>For each failed/timed-out test queued in step 1, creates</li>
+<p>     <code>reports/reportNN/<safe test name>/</code> and copies the attachments      (screenshot, video, trace) plus a plain <code>error.txt</code> with the stack.</p>
+<li>Folder-name conflicts are disambiguated with the project name and a</li>
+<p>     counter, and names are sanitised for Windows filesystem rules.</p>
+</ul>
+<p>Why the PDF is rendered from the JSON instead of the current run's results: in a resumable workflow most rows are often skipped in a given run, and the stakeholder opening the PDF wants to see the latest known status of every row, not just the ones that happened to execute today.</p>
+<hr>
+<h2>12. Reports and Evidence Layout</h2>
+<p>After a run, the following artefacts exist:</p>
+<ul>
+<li><code>reports/testResults.json</code> - updated with the latest per-row status.</li>
+<li><code>reports/reportNN/reportNN.pdf</code> - the human-readable PDF for this run.</li>
+<li><code>reports/reportNN/<Test Name>/</code> - only for tests that failed in this</li>
+<p>  run; contains the raw screenshot, video, trace zip and <code>error.txt</code>.</p>
+<li><code>playwright-report/</code> - the standard Playwright HTML report (always</li>
+<p>  overwritten, so this is only useful for the most recent run).</p>
+</ul>
+<hr>
+<h2>13. End-to-End Execution Walk-through</h2>
+<p>1. Operator runs <code>npx playwright test</code> (optionally <code>--headed</code>). 2. Playwright executes the <code>setup</code> project:</p>
+<ul>
+<li><code>login.setup.ts</code> logs into QA, saves <code>storageState.json</code>.</li>
+<p>3. Playwright starts the <code>chromium</code> project (depends on <code>setup</code>):</p>
+<li>Each Chromium worker launches with the saved storage state.</li>
+<li><code>create-client.spec.ts</code> is loaded; at module load time</li>
+<p>     <code>getWorkbookData()</code> reads the Excel file and generates one      <code>test()</code> per row inside a <code>test.describe(sheetName)</code>. 4. For every generated test, in order:</p>
+<li>Account / identifier annotations are pushed.</li>
+<li><code>testResults.json</code> is consulted; if the row was already <code>passed</code> or</li>
+<p>     <code>duplicate</code>, <code>test.skip(...)</code> is called and the test ends early.</p>
+<li>Otherwise the matching sheet branch instantiates <code>CreateAccountPage</code></li>
+<p>     and walks the Create Client wizard until <code>saveClient()</code> succeeds or      an expect fails. 5. For each test, the PDF reporter:</p>
+<li>Upserts the entry in <code>testResults.json</code> (never downgrading a prior</li>
+<p>     <code>passed/duplicate</code>).</p>
+<li>Queues attachments for failing tests.</li>
+<p>6. When the suite ends:</p>
+<li><code>onEnd</code> builds a new <code>reports/reportNN/</code> folder, reads</li>
+<p>     <code>testResults.json</code>, and renders <code>reportNN.pdf</code>.</p>
+<li><code>onExit</code> writes the per-failed-test evidence folders.</li>
+<p>7. Playwright's own <code>html</code> reporter also writes <code>playwright-report/</code>.</p>
+</ul>
+<p>A second invocation of <code>npx playwright test</code> with no changes will show every already-passed row as <code>skipped</code> in the console but still produce a full PDF showing all historical statuses - exactly the behaviour needed for a long-running test-data generation batch that is paused and resumed over several days.</p>
+<hr>
+<h2>14. Extensibility Notes</h2>
+<ul>
+<li><b>New account type</b> - add a new sheet to <code>clientsData.xlsx</code> whose name</li>
+<p>  matches a new <code>case</code> in <code>create-client.spec.ts</code>, and add any missing   helper methods to <code>CreateAccountPage</code>.</p>
+<li><b>New column</b> - add it to the Excel sheet; the spec passes it into the</li>
+<p>  relevant Page Object method; no reader changes needed because   <code>sheet_to_json(..., { defval: '' })</code> surfaces every column.</p>
+<li><b>Different environment</b> - change <code>baseURL</code> in <code>playwright.config.ts</code></li>
+<p>  and the two URLs embedded in <code>login.setup.ts</code> / <code>CreateAccountPage.goToClientsList()</code>.</p>
+<li><b>Reset the batch</b> - delete <code>reports/testResults.json</code>; the next run</li>
+<p>  will re-attempt every row from scratch.</p>
+<li><b>Force a specific row to re-run</b> - edit that row's <code>status</code> in</li>
+<p>  <code>testResults.json</code> to anything other than <code>passed</code>/<code>duplicate</code>   (e.g. <code>"failed"</code>) and run again.</p>
+</ul>
+<hr>
+<h2>15. Known Constraints / Assumptions</h2>
+<ul>
+<li>All Playwright timeouts are disabled; the suite therefore relies on the</li>
+<p>  explicit <code>waitFor</code> calls inside <code>CreateAccountPage</code>. A hung UI will   hang the suite until the operator cancels the run.</p>
+<li>Workers are forced to 1 because the Create Client wizard touches</li>
+<p>  shared, non-reentrant state in the QA app.</p>
+<li>The storage state produced by <code>login.setup.ts</code> is written to disk in</li>
+<p>  plain JSON; it should be treated as a secret and is already covered by   <code>.gitignore</code> on the repository root.</p>
+<li><code>testResults.json</code> grows unbounded over time. For long campaigns the</li>
+<p>  file can be archived and reset between batches.</p>
+</ul>
+<hr>
+<p>End of document.</p>
+</body></html>
+
